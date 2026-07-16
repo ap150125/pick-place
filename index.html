@@ -245,11 +245,49 @@
   .grip-btn.pick{background:var(--purple-bg);color:var(--purple-text);}
   .grip-btn.release{background:var(--green-bg);color:var(--green-text);}
   .grip-state{font-size:12.5px;color:var(--label);}
+  #themeBtn{
+    position:fixed;
+    top:20px;
+    right:20px;
+
+    width:55px;
+    height:55px;
+
+    border:none;
+    border-radius:50%;
+
+    background:#222;
+    color:white;
+
+    font-size:24px;
+    cursor:pointer;
+
+    box-shadow:0 4px 10px rgba(0,0,0,0.3);
+
+    transition:0.3s;
+    z-index:1000;
+}
+
+#themeBtn:hover{
+    transform:scale(1.1);
+}
+
+.dark-mode{
+    background:#121212;
+    color:white;
+}
+
+.dark-mode #themeBtn{
+    background:white;
+    color:black;
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-
+<button id="themeBtn" onclick="toggleTheme()">
+    🌙
+</button>
   <div class="header-row">
     <h1>Pick &amp; Place Robot</h1>
     <button class="conn-btn" id="connectBtn">
@@ -444,6 +482,32 @@
   // initial label colors
   autoLabel.style.color = 'var(--label)';
 })();
+  <script>
+
+const btn = document.getElementById("themeBtn");
+
+// Restore saved theme
+if(localStorage.getItem("theme") === "dark"){
+    document.body.classList.add("dark-mode");
+    btn.innerHTML = "☀️";
+}
+
+function toggleTheme(){
+
+    document.body.classList.toggle("dark-mode");
+
+    if(document.body.classList.contains("dark-mode")){
+        btn.innerHTML = "☀️";
+        localStorage.setItem("theme","dark");
+    }
+    else{
+        btn.innerHTML = "🌙";
+        localStorage.setItem("theme","light");
+    }
+
+}
+
+</script>
 </script>
 </body>
 </html>
