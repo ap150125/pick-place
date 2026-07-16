@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick &amp; Place Robot</title>
+<style>
+  :root{
+    --bg:#f2f2f4;
+    --card:#ffffff;
+    --border:#ececef;
+    --text:#1c1c1e;
+    --label:#8a8a92;
+    --purple:#6c63e0;
+    --purple-bg:#efedfc;
+    --purple-text:#4b3fd6;
+    --green-bg:#e3f6ea;
+    --green-text:#1f8a4c;
+    --red-border:#f3b7ac;
+    --red-text:#c0432a;
+    --red-bg:#fdf1ee;
+    --blue:#2f7de1;
+    --shadow:0 1px 2px rgba(0,0,0,0.04), 0 8px 20px rgba(0,0,0,0.03);
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+
+  /* Header */
+  .header-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:6px;
+  }
+  h1{
+    font-size:26px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .conn-btn{
+    font-family:var(--sans);
+    font-size:12.5px;
+    font-weight:600;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--text);
+    padding:9px 14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    white-space:nowrap;
+    transition:border-color .15s, color .15s;
+  }
+  .conn-btn:hover{border-color:var(--purple);color:var(--purple);}
+  .conn-btn:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+  .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--red-text);
+    flex-shrink:0;
+  }
+  .dot.connected{background:var(--green-text);}
+  .dot.connecting{background:#e3a83f; animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .status-line{
+    font-size:12.5px;
+    color:var(--label);
+    margin-bottom:22px;
+    min-height:16px;
+  }
+  .status-line.err{color:var(--red-text);}
+
+  /* Mode toggle */
+  .mode-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:26px;
+    font-size:15px;
+  }
+  .mode-row span{color:var(--text);}
+  .mode-row span.dim{color:var(--label);}
+  .switch{
+    position:relative;
+    width:52px;
+    height:28px;
+    background:var(--purple);
+    border-radius:999px;
+    border:none;
+    cursor:pointer;
+    padding:0;
+    flex-shrink:0;
+  }
+  .switch::after{
+    content:"";
+    position:absolute;
+    top:3px; left:3px;
+    width:22px; height:22px;
+    background:#fff;
+    border-radius:50%;
+    box-shadow:0 1px 3px rgba(0,0,0,0.25);
+    transition:transform .18s ease;
+  }
+  .switch.auto::after{transform:translateX(24px);}
+
+  /* Cards */
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    padding:22px;
+    margin-bottom:18px;
+  }
+  .card h2{
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    color:var(--label);
+    font-weight:600;
+    margin:0 0 18px;
+  }
+
+  .grid-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+  }
+  @media (max-width:600px){
+    .grid-row{grid-template-columns:1fr;}
+  }
+
+  /* D-pad */
+  .dpad{
+    display:grid;
+    grid-template-columns:56px 56px 56px;
+    grid-template-rows:56px 56px 56px;
+    gap:8px;
+    justify-content:start;
+  }
+  .dbtn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#f6f6f8;
+    border:1px solid var(--border);
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    color:var(--text);
+    user-select:none;
+    transition:background .12s, border-color .12s;
+  }
+  .dbtn:hover:not(:disabled){background:#ececf1;}
+  .dbtn:active:not(:disabled){background:#e2e2e9;}
+  .dbtn:disabled{opacity:.4;cursor:not-allowed;}
+  .dbtn.up{grid-column:2;grid-row:1;}
+  .dbtn.left{grid-column:1;grid-row:2;}
+  .dbtn.stop{
+    grid-column:2;grid-row:2;
+    background:var(--red-bg);
+    border-color:var(--red-border);
+    color:var(--red-text);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.04em;
+  }
+  .dbtn.stop:hover:not(:disabled){background:#fbe4de;}
+  .dbtn.right{grid-column:3;grid-row:2;}
+  .dbtn.down{grid-column:2;grid-row:3;}
+
+  /* Sliders */
+  .slider-block{margin-bottom:22px;}
+  .slider-block:last-child{margin-bottom:0;}
+  .slider-label{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    color:var(--text);
+    margin-bottom:10px;
+  }
+  .slider-label .val{color:var(--label);font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    -webkit-appearance:none;
+    width:100%;
+    height:5px;
+    border-radius:999px;
+    background:linear-gradient(to right, var(--blue) 0%, var(--blue) var(--fill,50%), #e5e5ea var(--fill,50%), #e5e5ea 100%);
+    outline:none;
+    cursor:pointer;
+  }
+  input[type=range]:disabled{opacity:.4;cursor:not-allowed;}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:20px;height:20px;
+    border-radius:50%;
+    background:var(--blue);
+    border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.25);
+    cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;
+    border-radius:50%;
+    background:var(--blue);
+    border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.25);
+    cursor:pointer;
+  }
+
+  /* Gripper */
+  .grip-btn{
+    width:100%;
+    font-family:var(--sans);
+    font-size:15px;
+    font-weight:500;
+    border-radius:10px;
+    border:none;
+    padding:16px;
+    cursor:pointer;
+    margin-bottom:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:filter .12s, opacity .12s;
+  }
+  .grip-btn:last-of-type{margin-bottom:6px;}
+  .grip-btn:hover:not(:disabled){filter:brightness(0.97);}
+  .grip-btn:disabled{opacity:.45;cursor:not-allowed;}
+  .grip-btn.pick{background:var(--purple-bg);color:var(--purple-text);}
+  .grip-btn.release{background:var(--green-bg);color:var(--green-text);}
+  .grip-state{font-size:12.5px;color:var(--label);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <h1>Pick &amp; Place Robot</h1>
+    <button class="conn-btn" id="connectBtn">
+      <span class="dot" id="dot"></span>
+      <span id="connectLabel">Connect</span>
+    </button>
+  </div>
+  <div class="status-line" id="statusLine">Not connected</div>
+
+  <div class="mode-row">
+    <span id="manualLabel">Manual</span>
+    <button class="switch" id="modeSwitch" aria-label="Toggle Manual/Auto mode"></button>
+    <span class="dim" id="autoLabel">Auto</span>
+  </div>
+
+  <div class="card">
+    <h2>Movement</h2>
+    <div class="dpad">
+      <button class="dbtn up" data-cmd="UP" disabled>&#9650;</button>
+      <button class="dbtn left" data-cmd="LEFT" disabled>&#9664;</button>
+      <button class="dbtn stop" data-cmd="STOP" disabled>STOP</button>
+      <button class="dbtn right" data-cmd="RIGHT" disabled>&#9654;</button>
+      <button class="dbtn down" data-cmd="DOWN" disabled>&#9660;</button>
+    </div>
+  </div>
+
+  <div class="grid-row">
+    <div class="card">
+      <h2>Servo Arm</h2>
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Rotation</span>
+          <span class="val" id="rotVal">90&deg;</span>
+        </div>
+        <input type="range" id="rotSlider" min="0" max="180" value="90" disabled>
+      </div>
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Lift</span>
+          <span class="val" id="liftVal">90&deg;</span>
+        </div>
+        <input type="range" id="liftSlider" min="0" max="180" value="90" disabled>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Gripper</h2>
+      <button class="grip-btn pick" id="pickBtn" disabled>&#128230; Pick</button>
+      <button class="grip-btn release" id="releaseBtn" disabled>&#128275; Release</button>
+      <div class="grip-state" id="gripState">Open</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  // Must match the ESP32 sketch's UUIDs
+  const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+  const CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+
+  const dot = $('dot'), connectLabel = $('connectLabel'), statusLine = $('statusLine');
+  const modeSwitch = $('modeSwitch'), manualLabel = $('manualLabel'), autoLabel = $('autoLabel');
+  const dpadBtns = document.querySelectorAll('.dbtn');
+  const rotSlider = $('rotSlider'), liftSlider = $('liftSlider');
+  const rotVal = $('rotVal'), liftVal = $('liftVal');
+  const pickBtn = $('pickBtn'), releaseBtn = $('releaseBtn'), gripState = $('gripState');
+
+  let device = null;
+  let characteristic = null;
+  let isAuto = false;
+
+  function setStatus(state, text, isErr){
+    dot.className = 'dot ' + state;
+    statusLine.textContent = text;
+    statusLine.className = 'status-line' + (isErr ? ' err' : '');
+  }
+
+  function setControlsEnabled(enabled){
+    dpadBtns.forEach(b => b.disabled = !enabled || isAuto);
+    rotSlider.disabled = !enabled;
+    liftSlider.disabled = !enabled;
+    pickBtn.disabled = !enabled;
+    releaseBtn.disabled = !enabled;
+    connectLabel.textContent = enabled ? 'Disconnect' : 'Connect';
+  }
+
+  async function connect(){
+    if (!navigator.bluetooth){
+      setStatus('', 'Web Bluetooth not supported — use Chrome or Edge', true);
+      return;
+    }
+    try{
+      setStatus('connecting', 'Requesting device…');
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [SERVICE_UUID] }]
+      });
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+
+      setStatus('connecting', 'Connecting…');
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      characteristic = await service.getCharacteristic(CHAR_UUID);
+
+      if (characteristic.properties.notify){
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', onNotify);
+      }
+
+      setStatus('connected', 'Connected to ' + (device.name || 'robot'));
+      setControlsEnabled(true);
+    } catch(err){
+      setStatus('', err.message, true);
+    }
+  }
+
+  function onDisconnected(){
+    setStatus('', 'Not connected');
+    setControlsEnabled(false);
+    characteristic = null;
+  }
+
+  function disconnect(){
+    if (device && device.gatt.connected) device.gatt.disconnect();
+  }
+
+  function onNotify(event){
+    const text = new TextDecoder().decode(event.target.value);
+    if (text === 'GRIP:CLOSED') gripState.textContent = 'Closed';
+    else if (text === 'GRIP:OPEN') gripState.textContent = 'Open';
+  }
+
+  async function sendCommand(cmd){
+    if (!characteristic) return;
+    try{
+      const data = new TextEncoder().encode(cmd);
+      if (characteristic.properties.writeWithoutResponse){
+        await characteristic.writeValueWithoutResponse(data);
+      } else {
+        await characteristic.writeValue(data);
+      }
+    } catch(err){
+      setStatus('connected', 'Send failed: ' + err.message, true);
+    }
+  }
+
+  $('connectBtn').addEventListener('click', () => {
+    if (device && device.gatt.connected) disconnect();
+    else connect();
+  });
+
+  modeSwitch.addEventListener('click', () => {
+    isAuto = !isAuto;
+    modeSwitch.classList.toggle('auto', isAuto);
+    manualLabel.style.color = isAuto ? 'var(--label)' : 'var(--text)';
+    autoLabel.style.color = isAuto ? 'var(--text)' : 'var(--label)';
+    dpadBtns.forEach(b => b.disabled = isAuto || !characteristic);
+    sendCommand(isAuto ? 'MODE:AUTO' : 'MODE:MANUAL');
+  });
+
+  dpadBtns.forEach(btn => {
+    btn.addEventListener('click', () => sendCommand(btn.dataset.cmd));
+  });
+
+  function bindSlider(slider, label, prefix, suffix){
+    slider.addEventListener('input', () => {
+      label.textContent = slider.value + suffix;
+      const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+      slider.style.setProperty('--fill', pct + '%');
+    });
+    slider.addEventListener('change', () => {
+      sendCommand(prefix + ':' + slider.value);
+    });
+    // init fill
+    const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+    slider.style.setProperty('--fill', pct + '%');
+  }
+  bindSlider(rotSlider, rotVal, 'ROT', '\u00b0');
+  bindSlider(liftSlider, liftVal, 'LIFT', '\u00b0');
+
+  pickBtn.addEventListener('click', () => {
+    gripState.textContent = 'Closed';
+    sendCommand('PICK');
+  });
+  releaseBtn.addEventListener('click', () => {
+    gripState.textContent = 'Open';
+    sendCommand('RELEASE');
+  });
+
+  // initial label colors
+  autoLabel.style.color = 'var(--label)';
+})();
+</script>
+</body>
+</html>
