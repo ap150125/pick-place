@@ -401,11 +401,7 @@
       setStatus('', 'Web Bluetooth not supported — use Chrome or Edge', true);
       return;
     }
-    try{
-      setStatus('connecting', 'Requesting device…');
-      device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [SERVICE_UUID] }]
-      });
+   
       device.addEventListener('gattserverdisconnected', onDisconnected);
 
       setStatus('connecting', 'Connecting…');
