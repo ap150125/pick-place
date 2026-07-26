@@ -315,9 +315,12 @@
   const $ = id => document.getElementById(id);
 
   // Must match the ESP32 sketch's UUIDs
-  const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-  const CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+  const SERVICE_UUID =
+            "12345678-1234-1234-1234-123456789abc";
 
+    const CHARACTERISTIC_UUID =
+            "abcdefab-1234-1234-1234-123456789abc";
+  
   const dot = $('dot'), connectLabel = $('connectLabel'), statusLine = $('statusLine');
   const modeSwitch = $('modeSwitch'), manualLabel = $('manualLabel'), autoLabel = $('autoLabel');
   const dpadBtns = document.querySelectorAll('.dbtn');
