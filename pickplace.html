@@ -21,6 +21,8 @@
     --red-text:#c0432a;
     --red-bg:#fdf1ee;
     --blue:#2f7de1;
+    --blue-bg:#e8f1fd;
+    --blue-text:#1d61c0;
     --shadow:0 1px 2px rgba(0,0,0,0.04), 0 8px 20px rgba(0,0,0,0.03);
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
@@ -199,7 +201,7 @@
     width:100%;
     height:5px;
     border-radius:999px;
-    background:linear-gradient(to right, var(--blue) 0%, var(--blue) var(--fill,50%), #e5e5ea var(--fill,50%), #e5e5ea 100%);
+    background:linear-gradient(to right, var(--blue) 0%, var(--blue) var(--fill,0%), #e5e5ea var(--fill,0%), #e5e5ea 100%);
     outline:none;
     cursor:pointer;
   }
@@ -222,29 +224,31 @@
     cursor:pointer;
   }
 
-  /* Gripper */
-  .grip-btn{
+  /* Action Buttons & Status */
+  .action-btn{
     width:100%;
     font-family:var(--sans);
     font-size:15px;
     font-weight:500;
     border-radius:10px;
     border:none;
-    padding:16px;
+    padding:14px;
     cursor:pointer;
-    margin-bottom:12px;
+    margin-bottom:10px;
     display:flex;
     align-items:center;
     justify-content:center;
     gap:8px;
     transition:filter .12s, opacity .12s;
   }
-  .grip-btn:last-of-type{margin-bottom:6px;}
-  .grip-btn:hover:not(:disabled){filter:brightness(0.97);}
-  .grip-btn:disabled{opacity:.45;cursor:not-allowed;}
-  .grip-btn.pick{background:var(--purple-bg);color:var(--purple-text);}
-  .grip-btn.release{background:var(--green-bg);color:var(--green-text);}
-  .grip-state{font-size:12.5px;color:var(--label);}
+  .action-btn:hover:not(:disabled){filter:brightness(0.97);}
+  .action-btn:disabled{opacity:.45;cursor:not-allowed;}
+  .action-btn.pick{background:var(--purple-bg);color:var(--purple-text);}
+  .action-btn.release{background:var(--green-bg);color:var(--green-text);}
+  .action-btn.color{background:var(--blue-bg);color:var(--blue-text);}
+  
+  .grip-state{font-size:12.5px;color:var(--label);margin-bottom:14px;}
+  .color-divider{border-top:1px solid var(--border);margin:14px 0;}
 </style>
 </head>
 <body>
@@ -273,11 +277,11 @@
   <div class="card">
     <h2>Movement</h2>
     <div class="dpad">
-      <button class="dbtn up" data-cmd="FORWARD" disabled>&#9650;</button>
+      <button class="dbtn up" data-cmd="UP" disabled>&#9650;</button>
       <button class="dbtn left" data-cmd="LEFT" disabled>&#9664;</button>
       <button class="dbtn stop" data-cmd="STOP" disabled>STOP</button>
       <button class="dbtn right" data-cmd="RIGHT" disabled>&#9654;</button>
-      <button class="dbtn down" data-cmd="BACKWARD" disabled>&#9660;</button>
+      <button class="dbtn down" data-cmd="DOWN" disabled>&#9660;</button>
     </div>
   </div>
 
@@ -287,24 +291,30 @@
       <div class="slider-block">
         <div class="slider-label">
           <span>Rotation</span>
-          <span class="val" id="rotVal">90&deg;</span>
+          <span class="val" id="rotVal">0&deg;</span>
         </div>
-        <input type="range" id="rotSlider" min="0" max="180" value="90" disabled>
+        <input type="range" id="rotSlider" min="0" max="180" value="0" disabled>
       </div>
       <div class="slider-block">
         <div class="slider-label">
           <span>Lift</span>
-          <span class="val" id="liftVal">90&deg;</span>
+          <span class="val" id="liftVal">0&deg;</span>
         </div>
-        <input type="range" id="liftSlider" min="0" max="180" value="90" disabled>
+        <!-- Lift slider constrained from 0 to 90 degrees -->
+        <input type="range" id="liftSlider" min="0" max="90" value="0" disabled>
       </div>
     </div>
 
     <div class="card">
-      <h2>Gripper</h2>
-      <button class="grip-btn pick" id="pickBtn" disabled>&#128230; Pick</button>
-      <button class="grip-btn release" id="releaseBtn" disabled>&#128275; Release</button>
-      <div class="grip-state" id="gripState">Open</div>
+      <h2>Gripper &amp; Color</h2>
+      <button class="action-btn pick" id="pickBtn" disabled>&#128230; Pick</button>
+      <button class="action-btn release" id="releaseBtn" disabled>&#128275; Release</button>
+      <div class="grip-state">Status: <span id="gripState" style="color:var(--text);font-weight:500;">Open</span></div>
+      
+      <div class="color-divider"></div>
+
+      <button class="action-btn color" id="getColorBtn" disabled>&#127912; Get Color</button>
+      <div class="grip-state" style="margin-bottom:0;">Detected Color: <span id="colorVal" style="color:var(--text);font-weight:500;">None</span></div>
     </div>
   </div>
 
@@ -314,12 +324,8 @@
 (function(){
   const $ = id => document.getElementById(id);
 
-  // Must match the ESP32 sketch's UUIDs
-  const SERVICE_UUID =
-            "12345678-1234-1234-1234-123456789abc";
-
-    const CHAR_UUID =
-            "abcdefab-1234-1234-1234-123456789abc";
+  const SERVICE_UUID = "12345678-1234-1234-1234-123456789abc";
+  const CHAR_UUID    = "abcdefab-1234-1234-1234-123456789abc";
   
   const dot = $('dot'), connectLabel = $('connectLabel'), statusLine = $('statusLine');
   const modeSwitch = $('modeSwitch'), manualLabel = $('manualLabel'), autoLabel = $('autoLabel');
@@ -327,6 +333,7 @@
   const rotSlider = $('rotSlider'), liftSlider = $('liftSlider');
   const rotVal = $('rotVal'), liftVal = $('liftVal');
   const pickBtn = $('pickBtn'), releaseBtn = $('releaseBtn'), gripState = $('gripState');
+  const getColorBtn = $('getColorBtn'), colorVal = $('colorVal');
 
   let device = null;
   let characteristic = null;
@@ -353,6 +360,7 @@
     liftSlider.disabled = !active;
     pickBtn.disabled = !active;
     releaseBtn.disabled = !active;
+    getColorBtn.disabled = !active;
     connectLabel.textContent = enabled ? 'Disconnect' : 'Connect';
   }
 
@@ -368,7 +376,7 @@
     try{
       setStatus('connecting', 'Requesting device…');
       device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [SERVICE_UUID] }]
+        filters: [{ services: [SERVICE_UUID] }]
       });
       device.addEventListener('gattserverdisconnected', onDisconnected);
 
@@ -400,9 +408,12 @@
   }
 
   function onNotify(event){
-    const text = new TextDecoder().decode(event.target.value);
+    const text = new TextDecoder().decode(event.target.value).trim();
     if (text === 'GRIP:CLOSED') gripState.textContent = 'Closed';
     else if (text === 'GRIP:OPEN') gripState.textContent = 'Open';
+    else if (text.startsWith('COLOR:')) {
+      colorVal.textContent = text.replace('COLOR:', '');
+    }
   }
 
   async function sendCommand(cmd){
@@ -451,7 +462,6 @@
     slider.addEventListener('change', () => {
       sendCommand(prefix + ':' + slider.value);
     });
-    // init fill
     const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
     slider.style.setProperty('--fill', pct + '%');
   }
@@ -467,7 +477,11 @@
     sendCommand('RELEASE');
   });
 
-  // initial label colors
+  getColorBtn.addEventListener('click', () => {
+    colorVal.textContent = 'Reading…';
+    sendCommand('GetColor');
+  });
+
   autoLabel.style.color = 'var(--label)';
 })();
 </script>
