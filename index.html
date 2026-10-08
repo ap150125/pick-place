@@ -300,7 +300,6 @@
           <span>Lift</span>
           <span class="val" id="liftVal">0&deg;</span>
         </div>
-        <!-- Lift slider constrained from 0 to 90 degrees -->
         <input type="range" id="liftSlider" min="0" max="90" value="0" disabled>
       </div>
     </div>
@@ -313,7 +312,7 @@
       
       <div class="color-divider"></div>
 
-      <button class="action-btn color" id="getColorBtn" disabled>&#127912; Get Color</button>
+      <button class="action-btn color" id="getColorBtn" disabled>&#127912; Color Sort</button>
       <div class="grip-state" style="margin-bottom:0;">Detected Color: <span id="colorVal" style="color:var(--text);font-weight:500;">None</span></div>
     </div>
   </div>
@@ -478,7 +477,7 @@
   });
 
   getColorBtn.addEventListener('click', () => {
-    colorVal.textContent = 'Reading…';
+    colorVal.textContent = 'Sorting…';
     sendCommand('GetColor');
   });
 
