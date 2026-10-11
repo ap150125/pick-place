@@ -243,8 +243,6 @@
   }
   .action-btn:hover:not(:disabled){filter:brightness(0.97);}
   .action-btn:disabled{opacity:.45;cursor:not-allowed;}
-  .action-btn.pick{background:var(--purple-bg);color:var(--purple-text);}
-  .action-btn.release{background:var(--green-bg);color:var(--green-text);}
   .action-btn.color{background:var(--blue-bg);color:var(--blue-text);}
   
   .grip-state{font-size:12.5px;color:var(--label);margin-bottom:14px;}
@@ -293,7 +291,7 @@
           <span>Rotation</span>
           <span class="val" id="rotVal">0&deg;</span>
         </div>
-        <input type="range" id="rotSlider" min="0" max="180" value="0" disabled>
+        <input type="range" id="rotSlider" min="0" max="270" value="0" disabled>
       </div>
       <div class="slider-block">
         <div class="slider-label">
@@ -306,9 +304,13 @@
 
     <div class="card">
       <h2>Gripper &amp; Color</h2>
-      <button class="action-btn pick" id="pickBtn" disabled>&#128230; Pick</button>
-      <button class="action-btn release" id="releaseBtn" disabled>&#128275; Release</button>
-      <div class="grip-state">Status: <span id="gripState" style="color:var(--text);font-weight:500;">Open</span></div>
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Grip</span>
+          <span class="val" id="gripVal">0&deg;</span>
+        </div>
+        <input type="range" id="gripSlider" min="0" max="45" value="0" disabled>
+      </div>
       
       <div class="color-divider"></div>
 
@@ -329,9 +331,8 @@
   const dot = $('dot'), connectLabel = $('connectLabel'), statusLine = $('statusLine');
   const modeSwitch = $('modeSwitch'), manualLabel = $('manualLabel'), autoLabel = $('autoLabel');
   const dpadBtns = document.querySelectorAll('.dbtn');
-  const rotSlider = $('rotSlider'), liftSlider = $('liftSlider');
-  const rotVal = $('rotVal'), liftVal = $('liftVal');
-  const pickBtn = $('pickBtn'), releaseBtn = $('releaseBtn'), gripState = $('gripState');
+  const rotSlider = $('rotSlider'), liftSlider = $('liftSlider'), gripSlider = $('gripSlider');
+  const rotVal = $('rotVal'), liftVal = $('liftVal'), gripVal = $('gripVal');
   const getColorBtn = $('getColorBtn'), colorVal = $('colorVal');
 
   let device = null;
@@ -357,8 +358,7 @@
     dpadBtns.forEach(b => b.disabled = !active);
     rotSlider.disabled = !active;
     liftSlider.disabled = !active;
-    pickBtn.disabled = !active;
-    releaseBtn.disabled = !active;
+    gripSlider.disabled = !active;
     getColorBtn.disabled = !active;
     connectLabel.textContent = enabled ? 'Disconnect' : 'Connect';
   }
@@ -408,9 +408,7 @@
 
   function onNotify(event){
     const text = new TextDecoder().decode(event.target.value).trim();
-    if (text === 'GRIP:CLOSED') gripState.textContent = 'Closed';
-    else if (text === 'GRIP:OPEN') gripState.textContent = 'Open';
-    else if (text.startsWith('COLOR:')) {
+    if (text.startsWith('COLOR:')) {
       colorVal.textContent = text.replace('COLOR:', '');
     }
   }
@@ -466,15 +464,7 @@
   }
   bindSlider(rotSlider, rotVal, 'ROT', '\u00b0');
   bindSlider(liftSlider, liftVal, 'LIFT', '\u00b0');
-
-  pickBtn.addEventListener('click', () => {
-    gripState.textContent = 'Closed';
-    sendCommand('PICK');
-  });
-  releaseBtn.addEventListener('click', () => {
-    gripState.textContent = 'Open';
-    sendCommand('RELEASE');
-  });
+  bindSlider(gripSlider, gripVal, 'GRIP', '\u00b0');
 
   getColorBtn.addEventListener('click', () => {
     colorVal.textContent = 'Sorting…';
