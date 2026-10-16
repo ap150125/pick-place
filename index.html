@@ -1,31 +1,431 @@
-// ================= GRIPPER (0° - 90° WEBPAGE SLIDER) =================
-void setGripAngle(int targetAngle)
-{
-  targetAngle = constrain(targetAngle, 0, 90);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="favicon.png">
+<title>Pick &amp; Place Robot</title>
+<style>
+  :root{
+    --bg:#f2f2f4;
+    --card:#ffffff;
+    --border:#ececef;
+    --text:#1c1c1e;
+    --label:#8a8a92;
+    --purple:#6c63e0;
+    --purple-bg:#efedfc;
+    --purple-text:#4b3fd6;
+    --green-bg:#e3f6ea;
+    --green-text:#1f8a4c;
+    --red-border:#f3b7ac;
+    --red-text:#c0432a;
+    --red-bg:#fdf1ee;
+    --blue:#2f7de1;
+    --blue-bg:#e8f1fd;
+    --blue-text:#1d61c0;
+    --shadow:0 1px 2px rgba(0,0,0,0.04), 0 8px 20px rgba(0,0,0,0.03);
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
 
-  if (targetAngle > currentGripAngle)
-  {
-    for (int angle = currentGripAngle; angle <= targetAngle; angle++)
-    {
-      int servoAngle = map(angle, 0, 90, GRIP_SERVO_OPEN, GRIP_SERVO_CLOSED);
-      gripServo.write(servoAngle);
-      delay(15);
+  /* Header */
+  .header-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:6px;
+  }
+  h1{
+    font-size:26px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .conn-btn{
+    font-family:var(--sans);
+    font-size:12.5px;
+    font-weight:600;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--text);
+    padding:9px 14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    white-space:nowrap;
+    transition:border-color .15s, color .15s;
+  }
+  .conn-btn:hover{border-color:var(--purple);color:var(--purple);}
+  .conn-btn:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+  .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--red-text);
+    flex-shrink:0;
+  }
+  .dot.connected{background:var(--green-text);}
+  .dot.connecting{background:#e3a83f; animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .status-line{
+    font-size:12.5px;
+    color:var(--label);
+    margin-bottom:22px;
+    min-height:16px;
+  }
+  .status-line.err{color:var(--red-text);}
+
+  /* Cards */
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    padding:22px;
+    margin-bottom:18px;
+  }
+  .card h2{
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    color:var(--label);
+    font-weight:600;
+    margin:0 0 18px;
+  }
+
+  .grid-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+  }
+  @media (max-width:600px){
+    .grid-row{grid-template-columns:1fr;}
+  }
+
+  /* D-pad */
+  .dpad{
+    display:grid;
+    grid-template-columns:56px 56px 56px;
+    grid-template-rows:56px 56px 56px;
+    gap:8px;
+    justify-content:start;
+  }
+  .dbtn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#f6f6f8;
+    border:1px solid var(--border);
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    color:var(--text);
+    user-select:none;
+    transition:background .12s, border-color .12s;
+    touch-action: manipulation;
+  }
+  .dbtn:hover:not(:disabled){background:#ececf1;}
+  .dbtn:active:not(:disabled){background:#e2e2e9;}
+  .dbtn:disabled{opacity:.4;cursor:not-allowed;}
+  .dbtn.up{grid-column:2;grid-row:1;}
+  .dbtn.left{grid-column:1;grid-row:2;}
+  .dbtn.stop{
+    grid-column:2;grid-row:2;
+    background:var(--red-bg);
+    border-color:var(--red-border);
+    color:var(--red-text);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.04em;
+  }
+  .dbtn.stop:hover:not(:disabled){background:#fbe4de;}
+  .dbtn.right{grid-column:3;grid-row:2;}
+  .dbtn.down{grid-column:2;grid-row:3;}
+
+  /* Sliders */
+  .slider-block{margin-bottom:22px;}
+  .slider-block:last-child{margin-bottom:0;}
+  .slider-label{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    color:var(--text);
+    margin-bottom:10px;
+  }
+  .slider-label .val{color:var(--label);font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    -webkit-appearance:none;
+    width:100%;
+    height:5px;
+    border-radius:999px;
+    background:linear-gradient(to right, var(--blue) 0%, var(--blue) var(--fill,0%), #e5e5ea var(--fill,0%), #e5e5ea 100%);
+    outline:none;
+    cursor:pointer;
+  }
+  input[type=range]:disabled{opacity:.4;cursor:not-allowed;}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:20px;height:20px;
+    border-radius:50%;
+    background:var(--blue);
+    border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.25);
+    cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;
+    border-radius:50%;
+    background:var(--blue);
+    border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.25);
+    cursor:pointer;
+  }
+
+  /* Action Buttons & Status */
+  .action-btn{
+    width:100%;
+    font-family:var(--sans);
+    font-size:15px;
+    font-weight:500;
+    border-radius:10px;
+    border:none;
+    padding:14px;
+    cursor:pointer;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:filter .12s, opacity .12s;
+  }
+  .action-btn:hover:not(:disabled){filter:brightness(0.97);}
+  .action-btn:disabled{opacity:.45;cursor:not-allowed;}
+  .action-btn.color{background:var(--blue-bg);color:var(--blue-text);}
+  
+  .grip-state{font-size:12.5px;color:var(--label);margin-bottom:14px;}
+  .color-divider{border-top:1px solid var(--border);margin:14px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <h1>Pick &amp; Place Robot</h1>
+    <button class="conn-btn" id="connectBtn">
+      <span class="dot" id="dot"></span>
+      <span id="connectLabel">Connect</span>
+    </button>
+  </div>
+  <div class="status-line" id="statusLine">Not connected</div>
+
+  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--label);margin-bottom:22px;cursor:pointer;">
+    <input type="checkbox" id="testModeToggle" style="cursor:pointer;">
+    Test mode (enable controls without connecting — for UI testing only)
+  </label>
+
+  <div class="card">
+    <h2>Movement</h2>
+    <div class="dpad">
+      <button class="dbtn up" data-cmd="UP" disabled>&#9650;</button>
+      <button class="dbtn left" data-cmd="LEFT" disabled>&#9664;</button>
+      <button class="dbtn stop" data-cmd="STOP" disabled>STOP</button>
+      <button class="dbtn right" data-cmd="RIGHT" disabled>&#9654;</button>
+      <button class="dbtn down" data-cmd="DOWN" disabled>&#9660;</button>
+    </div>
+  </div>
+
+  <div class="grid-row">
+    <div class="card">
+      <h2>Servo Arm</h2>
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Rotation</span>
+          <span class="val" id="rotVal">90&deg;</span>
+        </div>
+        <!-- Default value set to 90 to match ESP32 initial hardware state -->
+        <input type="range" id="rotSlider" min="0" max="270" value="90" disabled>
+      </div>
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Lift</span>
+          <span class="val" id="liftVal">0&deg;</span>
+        </div>
+        <input type="range" id="liftSlider" min="0" max="90" value="0" disabled>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Gripper &amp; Color</h2>
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Grip</span>
+          <span class="val" id="gripVal">0&deg;</span>
+        </div>
+        <!-- Range set to 0 to 90 -->
+        <input type="range" id="gripSlider" min="0" max="90" value="0" disabled>
+      </div>
+      
+      <div class="color-divider"></div>
+
+      <button class="action-btn color" id="getColorBtn" disabled>&#127912; Color Sort</button>
+      <div class="grip-state" style="margin-bottom:0;">Detected Color: <span id="colorVal" style="color:var(--text);font-weight:500;">None</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  const SERVICE_UUID = "12345678-1234-1234-1234-123456789abc";
+  const CHAR_UUID    = "abcdefab-1234-1234-1234-123456789abc";
+  
+  const dot = $('dot'), connectLabel = $('connectLabel'), statusLine = $('statusLine');
+  const dpadBtns = document.querySelectorAll('.dbtn');
+  const rotSlider = $('rotSlider'), liftSlider = $('liftSlider'), gripSlider = $('gripSlider');
+  const rotVal = $('rotVal'), liftVal = $('liftVal'), gripVal = $('gripVal');
+  const getColorBtn = $('getColorBtn'), colorVal = $('colorVal');
+
+  let device = null;
+  let characteristic = null;
+  let testMode = false;
+
+  const testModeToggle = $('testModeToggle');
+  testModeToggle.addEventListener('change', () => {
+    testMode = testModeToggle.checked;
+    setControlsEnabled(isLinkActive());
+    setStatus(testMode ? 'connecting' : '', testMode ? 'Test mode — commands are logged only' : 'Not connected');
+  });
+
+  function setStatus(state, text, isErr){
+    dot.className = 'dot ' + state;
+    statusLine.textContent = text;
+    statusLine.className = 'status-line' + (isErr ? ' err' : '');
+  }
+
+  function setControlsEnabled(enabled){
+    dpadBtns.forEach(b => b.disabled = !enabled);
+    rotSlider.disabled = !enabled;
+    liftSlider.disabled = !enabled;
+    gripSlider.disabled = !enabled;
+    getColorBtn.disabled = !enabled;
+    connectLabel.textContent = enabled ? 'Disconnect' : 'Connect';
+  }
+
+  function isLinkActive(){
+    return testMode || !!(device && device.gatt && device.gatt.connected);
+  }
+
+  async function connect(){
+    if (!navigator.bluetooth){
+      setStatus('', 'Web Bluetooth not supported — use Chrome or Edge', true);
+      return;
+    }
+    try{
+      setStatus('connecting', 'Scanning for Bluetooth devices…');
+      // acceptAllDevices guarantees discovery across Android, Windows, and macOS Chrome
+      device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [SERVICE_UUID]
+      });
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+
+      setStatus('connecting', 'Connecting to ' + (device.name || 'ESP32') + '…');
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      characteristic = await service.getCharacteristic(CHAR_UUID);
+
+      if (characteristic.properties.notify){
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', onNotify);
+      }
+
+      setStatus('connected', 'Connected to ' + (device.name || 'robot'));
+      setControlsEnabled(true);
+    } catch(err){
+      setStatus('', err.message, true);
     }
   }
-  else if (targetAngle < currentGripAngle)
-  {
-    for (int angle = currentGripAngle; angle >= targetAngle; angle--)
-    {
-      int servoAngle = map(angle, 0, 90, GRIP_SERVO_OPEN, GRIP_SERVO_CLOSED);
-      gripServo.write(servoAngle);
-      delay(15);
-    }
-  }
-  else
-  {
-    int servoAngle = map(targetAngle, 0, 90, GRIP_SERVO_OPEN, GRIP_SERVO_CLOSED);
-    gripServo.write(servoAngle);
+
+  function onDisconnected(){
+    setStatus('', 'Disconnected from device');
+    setControlsEnabled(false);
+    characteristic = null;
   }
 
-  currentGripAngle = targetAngle;
-}
+  function disconnect(){
+    if (device && device.gatt.connected) device.gatt.disconnect();
+  }
+
+  function onNotify(event){
+    const text = new TextDecoder().decode(event.target.value).trim();
+    if (text.startsWith('COLOR:')) {
+      colorVal.textContent = text.replace('COLOR:', '');
+    }
+  }
+
+  async function sendCommand(cmd){
+    if (testMode){
+      console.log('[TEST MODE] Sent:', cmd);
+      setStatus('connecting', 'Test mode — sent: ' + cmd);
+      return;
+    }
+    if (!characteristic) return;
+    try{
+      const data = new TextEncoder().encode(cmd);
+      if (characteristic.properties.writeWithoutResponse){
+        await characteristic.writeValueWithoutResponse(data);
+      } else {
+        await characteristic.writeValue(data);
+      }
+    } catch(err){
+      setStatus('connected', 'Send failed: ' + err.message, true);
+    }
+  }
+
+  $('connectBtn').addEventListener('click', () => {
+    if (device && device.gatt.connected) disconnect();
+    else connect();
+  });
+
+  dpadBtns.forEach(btn => {
+    btn.addEventListener('click', () => sendCommand(btn.dataset.cmd));
+  });
+
+  function bindSlider(slider, label, prefix, suffix){
+    const updateFill = () => {
+      label.textContent = slider.value + suffix;
+      const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+      slider.style.setProperty('--fill', pct + '%');
+    };
+    slider.addEventListener('input', updateFill);
+    slider.addEventListener('change', () => {
+      sendCommand(prefix + ':' + slider.value);
+    });
+    updateFill();
+  }
+  
+  bindSlider(rotSlider, rotVal, 'ROT', '\u00b0');
+  bindSlider(liftSlider, liftVal, 'LIFT', '\u00b0');
+  bindSlider(gripSlider, gripVal, 'GRIP', '\u00b0');
+
+  getColorBtn.addEventListener('click', () => {
+    colorVal.textContent = 'Sorting…';
+    sendCommand('GetColor');
+  });
+})();
+</script>
+</body>
+</html>
